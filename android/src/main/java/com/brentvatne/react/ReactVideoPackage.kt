@@ -1,27 +1,52 @@
 package com.brentvatne.react
 
+import com.codegen.video.NativeVideoDecoderInfoModuleSpec
+import com.codegen.video.NativeVideoViewModuleSpec
 import com.brentvatne.exoplayer.DefaultReactExoplayerConfig
 import com.brentvatne.exoplayer.ReactExoplayerConfig
 import com.brentvatne.exoplayer.ReactExoplayerViewManager
-import com.facebook.react.ReactPackage
-import com.facebook.react.bridge.JavaScriptModule
+import com.facebook.react.TurboReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.module.annotations.ReactModule
+import com.facebook.react.module.model.ReactModuleInfo
+import com.facebook.react.module.model.ReactModuleInfoProvider
+import com.facebook.react.turbomodule.core.interfaces.TurboModule
 import com.facebook.react.uimanager.ViewManager
 
-class ReactVideoPackage(private val config: ReactExoplayerConfig? = null) : ReactPackage {
+class ReactVideoPackage(private val config: ReactExoplayerConfig? = null) : TurboReactPackage() {
+    override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? =
+        when (name) {
+            NativeVideoDecoderInfoModuleSpec.NAME -> VideoDecoderInfoModule(reactContext)
+            NativeVideoViewModuleSpec.NAME -> VideoViewModule(reactContext)
+            else -> null
+        }
 
-    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-        listOf(
-            VideoDecoderInfoModule(reactContext),
-            VideoManagerModule(reactContext)
+    override fun getReactModuleInfoProvider(): ReactModuleInfoProvider {
+        val moduleList: Array<Class<out NativeModule?>> = arrayOf(
+            VideoDecoderInfoModule::class.java,
+            VideoViewModule::class.java
         )
-
-    // Deprecated RN 0.47
-    fun createJSModules(): List<Class<out JavaScriptModule>> = emptyList()
+        val reactModuleInfoMap: MutableMap<String, ReactModuleInfo> = HashMap()
+        for (moduleClass in moduleList) {
+            val reactModule = moduleClass.getAnnotation(ReactModule::class.java) ?: continue
+            reactModuleInfoMap[reactModule.name] =
+                ReactModuleInfo(
+                    reactModule.name,
+                    moduleClass.name,
+                    true,
+                    reactModule.needsEagerInit,
+                    /** TODO remove the parameter once support for RN < 0.73 is dropped */
+                    reactModule.hasConstants,
+                    reactModule.isCxxModule,
+                    TurboModule::class.java.isAssignableFrom(moduleClass)
+                )
+        }
+        return ReactModuleInfoProvider { reactModuleInfoMap }
+    }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
         val effectiveConfig = config ?: DefaultReactExoplayerConfig(reactContext)
-        return listOf(ReactExoplayerViewManager(effectiveConfig))
+        return listOf<ViewManager<*, *>>(ReactExoplayerViewManager(effectiveConfig))
     }
 }

@@ -29,7 +29,7 @@
         "jest": "^29.7.0",
         "prettier": "^2.4.1",
         "react": "18.2.0",
-        "react-native": "0.73.2",
+        "react-native": "0.74.3",
         "react-native-windows": "^0.61.0-0",
         "release-it": "^16.2.1",
         "typescript": "5.1.6"
@@ -50,7 +50,9 @@
         "check-ios": "scripts/swift-format.sh && scripts/swift-lint.sh && scripts/clang-format.sh",
         "check-android": "scripts/kotlin-lint.sh",
         "check-all": "yarn check-android; yarn check-ios; yarn lint",
-        "codegen": "node ./node_modules/react-native/scripts/generate-codegen-artifacts.js --path ./ ./output"
+        "codegen-android": "cd examples/FabricExample/android && ./gradlew generateCodegenArtifactsFromSchema",
+        "codegen-ios": "yarn react-native codegen --platform ios --path examples/FabricExample --outputPath examples/FabricExample/ios",
+        "codegen": "yarn codegen-android && yarn codegen-ios"
     },
     "files": [
         "android",
@@ -67,5 +69,13 @@
         "!**/*.tsbuildinfo",
         "!docs",
         "!examples"
-    ]
+    ],
+    "codegenConfig": {
+        "name": "rnv_codegen",
+        "type": "all",
+        "jsSrcsDir": "./src/specs",
+        "android": {
+            "javaPackageName": "com.codegen.video"
+        }
+    }
 }

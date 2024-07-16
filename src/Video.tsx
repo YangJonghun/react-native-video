@@ -10,7 +10,7 @@ import type {ElementRef} from 'react';
 import {View, StyleSheet, Image, Platform, processColor} from 'react-native';
 import type {StyleProp, ImageStyle, NativeSyntheticEvent} from 'react-native';
 
-import NativeVideoComponent from './specs/VideoNativeComponent';
+import VideoNativeComponent, {Commands} from './specs/VideoViewNativeComponent';
 import type {
   OnAudioFocusChangedData,
   OnAudioTracksData,
@@ -30,21 +30,21 @@ import type {
   OnVideoErrorData,
   OnVideoTracksData,
   VideoSrc,
-} from './specs/VideoNativeComponent';
+} from './specs/VideoViewNativeComponent';
 import {
   generateHeaderForNative,
   getReactTag,
   resolveAssetSourceForVideo,
 } from './utils';
-import NativeVideoManager from './specs/NativeVideoManager';
-import type {VideoSaveData} from './specs/NativeVideoManager';
-import {ViewType} from './types';
 import type {
   OnLoadData,
   OnTextTracksData,
   OnReceiveAdEventData,
   ReactVideoProps,
 } from './types';
+import {ViewType} from './types';
+import type {VideoSaveData} from './specs/NativeVideoViewModule';
+import NativeVideoUtilModule from './specs/NativeVideoViewModule';
 
 export interface VideoRef {
   seek: (time: number, tolerance?: number) => void;
@@ -112,7 +112,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
     },
     ref,
   ) => {
-    const nativeRef = useRef<ElementRef<typeof NativeVideoComponent>>(null);
+    const nativeRef = useRef<ElementRef<typeof VideoNativeComponent>>(null);
     const [showPoster, setShowPoster] = useState(!!poster);
     const [
       _restoreUserInterfaceForPIPStopCompletionHandler,
@@ -263,45 +263,51 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       }
 
       const callSeekFunction = () => {
-        NativeVideoManager.seekCmd(
-          getReactTag(nativeRef),
-          time,
-          tolerance || 0,
-        );
+        nativeRef.current &&
+          Commands.seekCmd(nativeRef.current, time, tolerance || 0);
       };
 
       Platform.select({
         ios: callSeekFunction,
         android: callSeekFunction,
         default: () => {
-          // TODO: Implement VideoManager.seekCmd for windows
+          // TODO: Implement Commands.seekCmd for windows
           nativeRef.current?.setNativeProps({seek: time});
         },
       })();
     }, []);
 
     const pause = useCallback(() => {
-      return NativeVideoManager.setPlayerPauseStateCmd(
-        getReactTag(nativeRef),
-        true,
+      return (
+        nativeRef.current &&
+        Commands.setPlayerPauseStateCmd(nativeRef.current, true)
       );
     }, []);
 
     const resume = useCallback(() => {
-      return NativeVideoManager.setPlayerPauseStateCmd(
-        getReactTag(nativeRef),
-        false,
+      return (
+        nativeRef.current &&
+        Commands.setPlayerPauseStateCmd(nativeRef.current, false)
       );
     }, []);
 
+    const restoreUserInterfaceForPictureInPictureStopCompleted = useCallback(
+      (restored: boolean) => {
+        setRestoreUserInterfaceForPIPStopCompletionHandler(restored);
+      },
+      [setRestoreUserInterfaceForPIPStopCompletionHandler],
+    );
+
     const setVolume = useCallback((volume: number) => {
-      return NativeVideoManager.setVolumeCmd(getReactTag(nativeRef), volume);
+      return (
+        nativeRef.current && Commands.setVolumeCmd(nativeRef.current, volume)
+      );
     }, []);
 
     const setFullScreen = useCallback((fullScreen: boolean) => {
-      return NativeVideoManager.setFullScreenCmd(
-        getReactTag(nativeRef),
-        fullScreen,
+      return (
+        nativeRef.current &&
+        Commands.setFullScreenCmd(nativeRef.current, fullScreen)
       );
     }, []);
 
@@ -321,20 +327,13 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
         return;
       }
       // @todo Must implement it in a different way.
-      return NativeVideoManager.save?.(getReactTag(nativeRef), options);
+      return NativeVideoUtilModule.save?.(getReactTag(nativeRef), options);
     }, []);
 
     const getCurrentPosition = useCallback(() => {
       // @todo Must implement it in a different way.
-      return NativeVideoManager.getCurrentPosition(getReactTag(nativeRef));
+      return NativeVideoUtilModule.getCurrentPosition(getReactTag(nativeRef));
     }, []);
-
-    const restoreUserInterfaceForPictureInPictureStopCompleted = useCallback(
-      (restored: boolean) => {
-        setRestoreUserInterfaceForPIPStopCompletionHandler(restored);
-      },
-      [setRestoreUserInterfaceForPIPStopCompletionHandler],
-    );
 
     const onVideoLoadStart = useCallback(
       (e: NativeSyntheticEvent<OnLoadStartData>) => {
@@ -529,8 +528,8 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
           result = 'No spc received';
         }
         if (nativeRef.current) {
-          NativeVideoManager.setLicenseResultErrorCmd(
-            getReactTag(nativeRef),
+          Commands.setLicenseResultErrorCmd(
+            nativeRef.current,
             result,
             data.loadedLicenseUrl,
           );
@@ -600,7 +599,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
 
     return (
       <View style={style}>
-        <NativeVideoComponent
+        <VideoNativeComponent
           ref={nativeRef}
           {...rest}
           src={src}

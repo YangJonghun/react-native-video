@@ -1,8 +1,5 @@
 import com.android.Version
 
-apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
-
 buildscript {
     def kotlin_version = rootProject.ext.has('kotlinVersion') ? rootProject.ext.get('kotlinVersion') : project.properties['RNVideo_kotlinVersion']
 
@@ -39,6 +36,12 @@ def supportsNamespace() {
     return major >= 8
 }
 
+apply plugin: 'com.android.library'
+if (isNewArchitectureEnabled()) {
+    apply plugin: 'com.facebook.react'
+}
+apply plugin: 'kotlin-android'
+
 def ExoplayerDependenciesList = [
     "useExoplayerIMA",
     "useExoplayerSmoothStreaming",
@@ -67,6 +70,10 @@ def configStringPath = ExoplayerDependencies
         .join('')
         .concat("buildFromSource:$media3_buildFromSource")
         .md5()
+
+def buildDirectory = "buildOutput_$configStringPath"
+
+println "buildDirectory: $buildDirectory"
 
 if (isNewArchitectureEnabled()) {
     apply plugin: "com.facebook.react"
@@ -110,10 +117,6 @@ android {
         buildConfigField "boolean", "USE_EXOPLAYER_DASH", ExoplayerDependencies["useExoplayerDash"].toString()
         buildConfigField "boolean", "USE_EXOPLAYER_HLS", ExoplayerDependencies["useExoplayerHls"].toString()
         buildConfigField "boolean", "USE_EXOPLAYER_RTSP", ExoplayerDependencies["useExoplayerRtsp"].toString()
-
-        ndk {
-            abiFilters(*reactNativeArchitectures())
-        }
     }
 
     buildFeatures {
@@ -124,7 +127,7 @@ android {
         exclude "**/libreact_render*.so"
     }
 
-    buildDir 'buildOutput_' + configStringPath
+    // buildDir buildDirectory
 
     sourceSets {
         main {
@@ -153,17 +156,15 @@ android {
         }
     }
 
-    sourceSets.main {
-        java {
+    sourceSets {
+        main {
             if (isNewArchitectureEnabled()) {
-                srcDirs += [
-                        "src/fabric/java",
-                        "${project.buildDir}/generated/source/codegen/java"
+                java.srcDirs += [
+                    // This is needed to build Kotlin project with NewArch enabled
+                    "${project.buildDir}/generated/source/codegen/java"
                 ]
             } else {
-                srcDirs += [
-                        "src/oldarch/java"
-                ]
+                java.srcDirs += ['src/oldarch']
             }
         }
     }
@@ -281,4 +282,45 @@ dependencies {
         implementation "androidx.media3:media3-common:$media3_version"
     }
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+}
+
+tasks.register('copyCodegenArtifacts') {
+    group 'After build tasks'
+    description 'Task which copies codegen artifacts to old architecture'
+    
+    if (!isNewArchitectureEnabled()) {
+        return
+    }
+
+    dependsOn tasks.generateCodegenArtifactsFromSchema
+
+    doLast {
+        def absoluteCodegenArtifactsOldArchDestination = "${projectDir}/src/oldarch/java/com"
+        def absoluteCodegenArtifactsSource = "${projectDir}/build/generated/source/codegen/java/com"
+
+        def existingFiles = fileTree(absoluteCodegenArtifactsOldArchDestination).matching {
+            include "**/*.java"
+        }
+        if (existingFiles.size() > 0) {
+            def tree = fileTree(dir: absoluteCodegenArtifactsOldArchDestination)
+            tree.include "**/*.java"
+            tree.each { it.delete() }
+        }
+        copy {
+            from absoluteCodegenArtifactsSource
+            include "**/*.java"
+            into absoluteCodegenArtifactsOldArchDestination
+        }
+    }
+}
+
+def isExampleApp() {
+    def rnvFiles = fileTree("${project.rootDir}/../../../android/src/main/java/com/brentvatne").matching {
+        include "**/*.java", "**/*.kt"
+    }
+    return rnvFiles.size() > 0
+}
+
+if (isNewArchitectureEnabled() && isExampleApp()) {
+    tasks.generateCodegenArtifactsFromSchema.finalizedBy('copyCodegenArtifacts')
 }

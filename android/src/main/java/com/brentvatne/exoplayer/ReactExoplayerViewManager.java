@@ -11,7 +11,6 @@ import androidx.annotation.NonNull;
 import com.brentvatne.common.api.BufferConfig;
 import com.brentvatne.common.api.BufferingStrategy;
 import com.brentvatne.common.api.ControlsConfig;
-import com.brentvatne.common.api.DRMProps;
 import com.brentvatne.common.api.ResizeMode;
 import com.brentvatne.common.api.SideLoadedTextTrackList;
 import com.brentvatne.common.api.Source;
@@ -25,16 +24,20 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.ViewGroupManager;
+import com.facebook.react.uimanager.ViewManagerDelegate;
 import com.facebook.react.uimanager.annotations.ReactProp;
+import com.facebook.react.viewmanagers.VideoViewManagerDelegate;
+import com.facebook.react.viewmanagers.VideoViewManagerInterface;
 
 import java.util.Map;
 
 import javax.annotation.Nullable;
 
-public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerView> {
+public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerView> implements VideoViewManagerInterface<ReactExoplayerView> {
 
+    private final ViewManagerDelegate<ReactExoplayerView> mDelegate;
     private static final String TAG = "ExoViewManager";
-    private static final String REACT_CLASS = "RCTVideo";
+    private static final String REACT_CLASS = "VideoView";
     private static final String PROP_SRC = "src";
     private static final String PROP_AD_TAG_URL = "adTagUrl";
     private static final String PROP_RESIZE_MODE = "resizeMode";
@@ -79,7 +82,9 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private final ReactExoplayerConfig config;
 
     public ReactExoplayerViewManager(ReactExoplayerConfig config) {
+        super();
         this.config = config;
+        this.mDelegate = new VideoViewManagerDelegate<ReactExoplayerView, ReactExoplayerViewManager>(this);
     }
 
     @NonNull
@@ -112,7 +117,14 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
         view.eventEmitter.addEventEmitters(reactContext, view);
     }
 
+    @Nullable
+    @Override
+    protected ViewManagerDelegate<ReactExoplayerView> getDelegate() {
+        return mDelegate;
+    }
+
     @ReactProp(name = PROP_SRC)
+    @Override
     public void setSrc(final ReactExoplayerView videoView, @Nullable ReadableMap src) {
         Context context = videoView.getContext().getApplicationContext();
         Source source = Source.parse(src, context);
@@ -124,6 +136,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     }
 
     @ReactProp(name = PROP_AD_TAG_URL)
+    @Override
     public void setAdTagUrl(final ReactExoplayerView videoView, final String uriString) {
         if (TextUtils.isEmpty(uriString)) {
             videoView.setAdTagUrl(null);
@@ -136,6 +149,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     }
 
     @ReactProp(name = PROP_RESIZE_MODE)
+    @Override
     public void setResizeMode(final ReactExoplayerView videoView, final String resizeMode) {
         switch (resizeMode) {
             case "none":
@@ -156,16 +170,19 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     }
 
     @ReactProp(name = PROP_REPEAT, defaultBoolean = false)
+    @Override
     public void setRepeat(final ReactExoplayerView videoView, final boolean repeat) {
         videoView.setRepeatModifier(repeat);
     }
 
     @ReactProp(name = PROP_PREVENTS_DISPLAY_SLEEP_DURING_VIDEO_PLAYBACK, defaultBoolean = false)
+    @Override
     public void setPreventsDisplaySleepDuringVideoPlayback(final ReactExoplayerView videoView, final boolean preventsSleep) {
         videoView.setPreventsDisplaySleepDuringVideoPlayback(preventsSleep);
     }
 
     @ReactProp(name = PROP_SELECTED_VIDEO_TRACK)
+    @Override
     public void setSelectedVideoTrack(final ReactExoplayerView videoView,
                                      @Nullable ReadableMap selectedVideoTrack) {
         String typeString = null;
@@ -178,6 +195,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     }
 
     @ReactProp(name = PROP_SELECTED_AUDIO_TRACK)
+    @Override
     public void setSelectedAudioTrack(final ReactExoplayerView videoView,
                                      @Nullable ReadableMap selectedAudioTrack) {
         String typeString = null;
@@ -190,6 +208,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     }
 
     @ReactProp(name = PROP_SELECTED_TEXT_TRACK)
+    @Override
     public void setSelectedTextTrack(final ReactExoplayerView videoView,
                                      @Nullable ReadableMap selectedTextTrack) {
         String typeString = null;
@@ -202,6 +221,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     }
 
     @ReactProp(name = PROP_TEXT_TRACKS)
+    @Override
     public void setTextTracks(final ReactExoplayerView videoView,
                                   @Nullable ReadableArray textTracks) {
         SideLoadedTextTrackList sideLoadedTextTracks = SideLoadedTextTrackList.Companion.parse(textTracks);
@@ -209,123 +229,147 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     }
 
     @ReactProp(name = PROP_PAUSED, defaultBoolean = false)
+    @Override
     public void setPaused(final ReactExoplayerView videoView, final boolean paused) {
         videoView.setPausedModifier(paused);
     }
 
     @ReactProp(name = PROP_MUTED, defaultBoolean = false)
+    @Override
     public void setMuted(final ReactExoplayerView videoView, final boolean muted) {
         videoView.setMutedModifier(muted);
     }
 
     @ReactProp(name = PROP_AUDIO_OUTPUT)
+    @Override
     public void setAudioOutput(final ReactExoplayerView videoView, final String audioOutput) {
         videoView.setAudioOutput(AudioOutput.get(audioOutput));
     }
 
     @ReactProp(name = PROP_VOLUME, defaultFloat = 1.0f)
+    @Override
     public void setVolume(final ReactExoplayerView videoView, final float volume) {
         videoView.setVolumeModifier(volume);
     }
 
     @ReactProp(name = PROP_PROGRESS_UPDATE_INTERVAL, defaultFloat = 250.0f)
+    @Override
     public void setProgressUpdateInterval(final ReactExoplayerView videoView, final float progressUpdateInterval) {
         videoView.setProgressUpdateInterval(progressUpdateInterval);
     }
 
     @ReactProp(name = PROP_REPORT_BANDWIDTH, defaultBoolean = false)
+    @Override
     public void setReportBandwidth(final ReactExoplayerView videoView, final boolean reportBandwidth) {
         videoView.setReportBandwidth(reportBandwidth);
     }
 
     @ReactProp(name = PROP_RATE)
+    @Override
     public void setRate(final ReactExoplayerView videoView, final float rate) {
         videoView.setRateModifier(rate);
     }
 
     @ReactProp(name = PROP_MAXIMUM_BIT_RATE)
+    @Override
     public void setMaxBitRate(final ReactExoplayerView videoView, final float maxBitRate) {
         videoView.setMaxBitRateModifier((int)maxBitRate);
     }
 
     @ReactProp(name = PROP_MIN_LOAD_RETRY_COUNT)
+    @Override
     public void setMinLoadRetryCount(final ReactExoplayerView videoView, final int minLoadRetryCount) {
         videoView.setMinLoadRetryCountModifier(minLoadRetryCount);
     }
 
     @ReactProp(name = PROP_PLAY_IN_BACKGROUND, defaultBoolean = false)
+    @Override
     public void setPlayInBackground(final ReactExoplayerView videoView, final boolean playInBackground) {
         videoView.setPlayInBackground(playInBackground);
     }
 
     @ReactProp(name = PROP_DISABLE_FOCUS, defaultBoolean = false)
+    @Override
     public void setDisableFocus(final ReactExoplayerView videoView, final boolean disableFocus) {
         videoView.setDisableFocus(disableFocus);
     }
 
     @ReactProp(name = PROP_FOCUSABLE, defaultBoolean = true)
+    @Override
     public void setFocusable(final ReactExoplayerView videoView, final boolean focusable) {
         videoView.setFocusable(focusable);
     }
 
     @ReactProp(name = PROP_CONTENT_START_TIME, defaultInt = -1)
+    @Override
     public void setContentStartTime(final ReactExoplayerView videoView, final int contentStartTime) {
         videoView.setContentStartTime(contentStartTime);
     }
 
     @ReactProp(name = PROP_BUFFERING_STRATEGY)
+    @Override
     public void setBufferingStrategy(final ReactExoplayerView videoView, final String bufferingStrategy) {
         BufferingStrategy.BufferingStrategyEnum strategy = BufferingStrategy.Companion.parse(bufferingStrategy);
         videoView.setBufferingStrategy(strategy);
     }
 
     @ReactProp(name = PROP_DISABLE_DISCONNECT_ERROR, defaultBoolean = false)
+    @Override
     public void setDisableDisconnectError(final ReactExoplayerView videoView, final boolean disableDisconnectError) {
         videoView.setDisableDisconnectError(disableDisconnectError);
     }
 
     @ReactProp(name = PROP_FULLSCREEN, defaultBoolean = false)
-    public void setFullscreen(final ReactExoplayerView videoView, final boolean fullscreen) {
+    @Override
+    public void setFullscreen(final ReactExoplayerView videoView, boolean fullscreen) {
         videoView.setFullscreen(fullscreen);
     }
 
     @ReactProp(name = PROP_VIEW_TYPE, defaultInt = ViewType.VIEW_TYPE_SURFACE)
+    @Override
     public void setViewType(final ReactExoplayerView videoView, final int viewType) {
         videoView.setViewType(viewType);
     }
 
     @ReactProp(name = PROP_HIDE_SHUTTER_VIEW, defaultBoolean = false)
+    @Override
     public void setHideShutterView(final ReactExoplayerView videoView, final boolean hideShutterView) {
         videoView.setHideShutterView(hideShutterView);
     }
 
     @ReactProp(name = PROP_CONTROLS, defaultBoolean = false)
+    @Override
     public void setControls(final ReactExoplayerView videoView, final boolean controls) {
         videoView.setControls(controls);
     }
 
     @ReactProp(name = PROP_SUBTITLE_STYLE)
+    @Override
     public void setSubtitleStyle(final ReactExoplayerView videoView, @Nullable final ReadableMap src) {
         videoView.setSubtitleStyle(SubtitleStyle.parse(src));
     }
 
     @ReactProp(name = PROP_SHUTTER_COLOR, defaultInt = 0)
+    @Override
     public void setShutterColor(final ReactExoplayerView videoView, final int color) {
         videoView.setShutterColor(color == 0 ? Color.BLACK : color);
     }
 
     @ReactProp(name = PROP_BUFFER_CONFIG)
+    @Override
     public void setBufferConfig(final ReactExoplayerView videoView, @Nullable ReadableMap bufferConfig) {
         BufferConfig config = BufferConfig.parse(bufferConfig);
         videoView.setBufferConfig(config);
     }
 
     @ReactProp(name = PROP_SHOW_NOTIFICATION_CONTROLS)
+    @Override
     public void setShowNotificationControls(final ReactExoplayerView videoView, final boolean showNotificationControls) {
         videoView.setShowNotificationControls(showNotificationControls);
     }
 
     @ReactProp(name = PROP_DEBUG, defaultBoolean = false)
+    @Override
     public void setDebug(final ReactExoplayerView videoView,
                          @Nullable final ReadableMap debugConfig) {
         boolean enableDebug = ReactBridgeUtils.safeGetBool(debugConfig, "enable", false);
@@ -339,8 +383,91 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     }
 
     @ReactProp(name = PROP_CONTROLS_STYLES)
+    @Override
     public void setControlsStyles(final ReactExoplayerView videoView, @Nullable ReadableMap controlsStyles) {
         ControlsConfig controlsConfig = ControlsConfig.parse(controlsStyles);
         videoView.setControlsStyles(controlsConfig);
     }
+
+    @ReactProp(name = "allowExternalPlayback")
+    @Override
+    public void setAllowsExternalPlayback(ReactExoplayerView view, boolean allowsExternalPlayback) { }
+
+    @ReactProp(name = "automaticallyWaitsToMinimizeStalling")
+    @Override
+    public void setAutomaticallyWaitsToMinimizeStalling(ReactExoplayerView view, boolean automaticallyWaitsToMinimizeStalling) { }
+
+    @ReactProp(name = "filter")
+    @Override
+    public void setFilter(ReactExoplayerView view, String filter) { }
+
+    @ReactProp(name = "filterEnabled")
+    @Override
+    public void setFilterEnabled(ReactExoplayerView view, boolean filterEnabled) { }
+
+    @ReactProp(name = "preferredForwardBufferDuration")
+    @Override
+    public void setPreferredForwardBufferDuration(ReactExoplayerView view, float preferredForwardBufferDuration) { }
+
+    @ReactProp(name = "playWhenInactive")
+    @Override
+    public void setPlayWhenInactive(ReactExoplayerView view, boolean playWhenInactive) { }
+
+    @ReactProp(name = "pictureInPicture")
+    @Override
+    public void setPictureInPicture(ReactExoplayerView view, boolean pictureInPicture) { }
+
+    @ReactProp(name = "ignoreSilentSwitch")
+    @Override
+    public void setIgnoreSilentSwitch(ReactExoplayerView view, String ignoreSilentSwitch) { }
+
+    @ReactProp(name = "mixWithOthers")
+    @Override
+    public void setMixWithOthers(ReactExoplayerView view, String mixWithOthers) { }
+
+    @ReactProp(name = "fullscreenAutorotate")
+    @Override
+    public void setFullscreenAutorotate(ReactExoplayerView view, boolean fullscreenAutorotate) { }
+
+    @ReactProp(name = "fullscreenOrientation")
+    @Override
+    public void setFullscreenOrientation(ReactExoplayerView view, String fullscreenOrientation) { }
+
+    @ReactProp(name = "restoreUserInterfaceForPIPStopCompletionHandler")
+    @Override
+    public void setRestoreUserInterfaceForPIPStopCompletionHandler(ReactExoplayerView view, boolean restoreUserInterfaceForPIPStopCompletionHandler) { }
+
+    @ReactProp(name = "localSourceEncryptionKeyScheme")
+    @Override
+    public void setLocalSourceEncryptionKeyScheme(ReactExoplayerView view, String localSourceEncryptionKeyScheme) { }
+
+    @ReactProp(name = "currentPlaybackTime")
+    @Override
+    public void setCurrentPlaybackTime(ReactExoplayerView view, double currentPlaybackTime) { }
+
+    @Override
+    public void seekCmd(ReactExoplayerView view, float time, float tolerance) {
+        view.seekTo(Math.round(time * 1000f));
+    }
+
+    @Override
+    public void setPlayerPauseStateCmd(ReactExoplayerView view, boolean paused) {
+        view.setPausedModifier(paused);
+    }
+
+    @Override
+    public void setVolumeCmd(ReactExoplayerView view, float volume) {
+        view.setVolumeModifier(volume);
+    }
+
+    @Override
+    public void setFullScreenCmd(ReactExoplayerView view, boolean fullScreen) {
+        view.setFullscreen(fullScreen);
+    }
+
+    @Override
+    public void setLicenseResultCmd(ReactExoplayerView view, String result, String licenseUrl) { }
+
+    @Override
+    public void setLicenseResultErrorCmd(ReactExoplayerView view, String error, String licenseUrl) { }
 }

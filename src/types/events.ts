@@ -18,7 +18,7 @@ import type {
   OnVideoErrorData,
   OnVideoTracksData,
   OnVolumeChangeData,
-} from '../specs/VideoNativeComponent';
+} from '../specs/VideoViewNativeComponent';
 
 export type AudioTrack = OnAudioTracksData['audioTracks'][number];
 export type TextTrack = OnTextTracksData['textTracks'][number];

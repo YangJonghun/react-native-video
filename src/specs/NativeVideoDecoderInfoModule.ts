@@ -1,8 +1,8 @@
-import {NativeModules} from 'react-native';
+import type {TurboModule} from 'react-native';
+import {TurboModuleRegistry} from 'react-native';
 import type {Int32} from 'react-native/Libraries/Types/CodegenTypes';
 
-// @TODO rename to "Spec" when applying new arch
-interface VideoDecoderInfoModuleType {
+interface Spec extends TurboModule {
   getWidevineLevel: () => Promise<Int32>;
   isCodecSupported: (
     mimeType: string,
@@ -12,4 +12,4 @@ interface VideoDecoderInfoModuleType {
   isHEVCSupported: () => Promise<'unsupported' | 'hardware' | 'software'>;
 }
 
-export default NativeModules.VideoDecoderInfoModule as VideoDecoderInfoModuleType;
+export default TurboModuleRegistry.getEnforcing<Spec>('VideoDecoderInfoModule');

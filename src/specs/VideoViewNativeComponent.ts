@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import type {HostComponent, ViewProps} from 'react-native';
-import {requireNativeComponent} from 'react-native';
 import type {
   DirectEventHandler,
   Double,
@@ -8,6 +7,8 @@ import type {
   Int32,
   WithDefault,
 } from 'react-native/Libraries/Types/CodegenTypes';
+import codegenNativeCommands from 'react-native/Libraries/Utilities/codegenNativeCommands';
+import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNativeComponent';
 
 // -------- There are types for native component (future codegen) --------
 // if you are looking for types for react component, see src/types/video.ts
@@ -291,7 +292,7 @@ export type OnControlsVisibilityChange = Readonly<{
   isVisible: boolean;
 }>;
 
-export interface VideoNativeProps extends ViewProps {
+interface NativeProps extends ViewProps {
   src?: VideoSrc;
   adTagUrl?: string;
   allowsExternalPlayback?: boolean; // ios, true
@@ -373,8 +374,47 @@ export interface VideoNativeProps extends ViewProps {
   onVideoTracks?: DirectEventHandler<OnVideoTracksData>; // android
 }
 
-type NativeVideoComponentType = HostComponent<VideoNativeProps>;
+type NativeVideoComponentType = HostComponent<NativeProps>;
 
-export default requireNativeComponent<VideoNativeProps>(
-  'RCTVideo',
-) as NativeVideoComponentType;
+export interface NativeVideoCommands {
+  seekCmd: (
+    viewRef: React.ElementRef<NativeVideoComponentType>,
+    time: Float,
+    tolerance?: Float,
+  ) => void;
+  setPlayerPauseStateCmd: (
+    viewRef: React.ElementRef<NativeVideoComponentType>,
+    paused: boolean,
+  ) => void;
+  setVolumeCmd: (
+    viewRef: React.ElementRef<NativeVideoComponentType>,
+    volume: Float,
+  ) => void;
+  setFullScreenCmd: (
+    viewRef: React.ElementRef<NativeVideoComponentType>,
+    fullScreen: boolean,
+  ) => void;
+  setLicenseResultCmd: (
+    viewRef: React.ElementRef<NativeVideoComponentType>,
+    result: string,
+    licenseUrl: string,
+  ) => void;
+  setLicenseResultErrorCmd: (
+    viewRef: React.ElementRef<NativeVideoComponentType>,
+    error: string,
+    licenseUrl: string,
+  ) => void;
+}
+
+export const Commands = codegenNativeCommands<NativeVideoCommands>({
+  supportedCommands: [
+    'seekCmd',
+    'setPlayerPauseStateCmd',
+    'setVolumeCmd',
+    'setFullScreenCmd',
+    'setLicenseResultCmd',
+    'setLicenseResultErrorCmd',
+  ],
+});
+
+export default codegenNativeComponent<NativeProps>('VideoView');
