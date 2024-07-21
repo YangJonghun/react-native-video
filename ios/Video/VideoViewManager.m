@@ -1,7 +1,7 @@
-#import "React/RCTViewManager.h"
+#import <React/RCTViewManager.h>
 #import <React/RCTBridgeModule.h>
 
-@interface RCT_EXTERN_MODULE (RCTVideoManager, RCTViewManager)
+@interface RCT_EXTERN_REMAP_MODULE (VideoView, VideoViewManager, RCTViewManager)
 
 RCT_EXPORT_VIEW_PROPERTY(src, NSDictionary);
 RCT_EXPORT_VIEW_PROPERTY(drm, NSDictionary);
@@ -74,15 +74,5 @@ RCT_EXTERN_METHOD(setLicenseResultErrorCmd : (nonnull NSNumber*)reactTag error :
 RCT_EXTERN_METHOD(setPlayerPauseStateCmd : (nonnull NSNumber*)reactTag paused : (nonnull BOOL)paused)
 RCT_EXTERN_METHOD(setVolumeCmd : (nonnull NSNumber*)reactTag volume : (nonnull float*)volume)
 RCT_EXTERN_METHOD(setFullScreenCmd : (nonnull NSNumber*)reactTag fullscreen : (nonnull BOOL)fullScreen)
-
-RCT_EXTERN_METHOD(save
-                  : (nonnull NSNumber*)reactTag options
-                  : (NSDictionary*)options resolve
-                  : (RCTPromiseResolveBlock)resolve reject
-                  : (RCTPromiseRejectBlock)reject)
-RCT_EXTERN_METHOD(getCurrentPosition
-                  : (nonnull NSNumber*)reactTag resolve
-                  : (RCTPromiseResolveBlock)resolve reject
-                  : (RCTPromiseRejectBlock)reject)
 
 @end

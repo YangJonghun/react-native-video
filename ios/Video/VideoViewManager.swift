@@ -1,17 +1,19 @@
 import AVFoundation
 import React
 
-@objc(RCTVideoManager)
-class RCTVideoManager: RCTViewManager {
-    override func view() -> UIView {
-        return RCTVideo(eventDispatcher: (RCTBridge.current().eventDispatcher() as! RCTEventDispatcher))
-    }
 
-    func methodQueue() -> DispatchQueue {
-        return bridge.uiManager.methodQueue
+@objc(VideoViewManager)
+class VideoViewManager: RCTViewManager {
+    override final func view() -> UIView! {
+        return VideoView()
     }
-
-    func performOnVideoView(withReactTag reactTag: NSNumber, callback: @escaping (RCTVideo?) -> Void) {
+    
+    @objc
+    override static func requiresMainQueueSetup() -> Bool {
+        return true
+    }
+    
+    func performOnVideoView(withReactTag reactTag: NSNumber, callback: @escaping (VideoView?) -> Void) {
         DispatchQueue.main.async { [weak self] in
             guard let self else {
                 callback(nil)
@@ -20,7 +22,7 @@ class RCTVideoManager: RCTViewManager {
 
             let view = self.bridge.uiManager.view(forReactTag: reactTag)
 
-            guard let videoView = view as? RCTVideo else {
+            guard let videoView = view as? VideoView else {
                 DebugLog("Invalid view returned from registry, expecting RCTVideo, got: \(String(describing: self.view))")
                 callback(nil)
                 return
@@ -70,23 +72,5 @@ class RCTVideoManager: RCTViewManager {
         performOnVideoView(withReactTag: reactTag, callback: { videoView in
             videoView?.setFullscreen(fullScreen)
         })
-    }
-
-    @objc(save:options:resolve:reject:)
-    func save(_ reactTag: NSNumber, options: NSDictionary, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
-        performOnVideoView(withReactTag: reactTag, callback: { videoView in
-            videoView?.save(options, resolve, reject)
-        })
-    }
-
-    @objc(getCurrentPosition:resolve:reject:)
-    func getCurrentPosition(_ reactTag: NSNumber, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
-        performOnVideoView(withReactTag: reactTag, callback: { videoView in
-            videoView?.getCurrentPlaybackTime(resolve, reject)
-        })
-    }
-
-    override class func requiresMainQueueSetup() -> Bool {
-        return true
     }
 }

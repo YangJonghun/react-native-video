@@ -8,7 +8,7 @@ import React
 
 // MARK: - RCTVideo
 
-class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverHandler {
+class VideoView: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverHandler {
     private var _player: AVPlayer?
     private var _playerItem: AVPlayerItem?
     private var _source: VideoSource?
@@ -19,8 +19,6 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
     private var _videoURL: NSURL?
     private var _localSourceEncryptionKeyScheme: String?
 
-    /* Required to publish events */
-    private var _eventDispatcher: RCTEventDispatcher?
     private var _videoLoadStarted = false
 
     private var _pendingSeek = false
@@ -197,14 +195,12 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         #endif
     }
 
-    init(eventDispatcher: RCTEventDispatcher!) {
+    init() {
         super.init(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
         ReactNativeVideoManager.shared.registerView(newInstance: self)
         #if USE_GOOGLE_IMA
             _imaAdsManager = RCTIMAAdsManager(video: self, pipEnabled: isPipEnabled)
         #endif
-
-        _eventDispatcher = eventDispatcher
 
         #if os(iOS)
             if _pictureInPictureEnabled {
@@ -1291,7 +1287,6 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
             _playerObserver.playerViewController = nil
         }
 
-        _eventDispatcher = nil
         // swiftlint:disable:next notification_center_detachment
         NotificationCenter.default.removeObserver(self)
 

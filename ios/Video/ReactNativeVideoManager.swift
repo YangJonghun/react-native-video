@@ -13,13 +13,13 @@ public class ReactNativeVideoManager: RNVPlugin {
 
     public static let shared: ReactNativeVideoManager = .init()
 
-    var instanceList: [RCTVideo] = Array()
+    var instanceList: [VideoView] = Array()
     var pluginList: [RNVPlugin] = Array()
 
     /**
       * register a new ReactExoplayerViewManager in the managed list
      */
-    func registerView(newInstance: RCTVideo) {
+    func registerView(newInstance: VideoView) {
         if instanceList.count > expectedMaxVideoCount {
             DebugLog("multiple Video displayed ?")
         }
@@ -29,7 +29,7 @@ public class ReactNativeVideoManager: RNVPlugin {
     /**
      * unregister existing ReactExoplayerViewManager in the managed list
      */
-    func unregisterView(newInstance: RCTVideo) {
+    func unregisterView(newInstance: VideoView) {
         if let i = instanceList.firstIndex(of: newInstance) {
             instanceList.remove(at: i)
         }
