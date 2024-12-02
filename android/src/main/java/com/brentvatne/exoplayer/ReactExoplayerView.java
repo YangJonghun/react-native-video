@@ -38,9 +38,6 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
-import androidx.fragment.app.FragmentManager;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -210,8 +207,7 @@ public class ReactExoplayerView extends FrameLayout implements
     private boolean isPaused;
     private boolean isBuffering;
     private boolean muted = false;
-    private boolean enterPictureInPictureOnLeave = false;
-    private boolean isInPictureInPicture = false;
+    public boolean enterPictureInPictureOnLeave = false;
     private PictureInPictureParams.Builder pictureInPictureParamsBuilder;
     private boolean hasAudioFocus = false;
     private float rate = 1f;
@@ -223,6 +219,7 @@ public class ReactExoplayerView extends FrameLayout implements
     private boolean selectTrackWhenReady = false;
     private final Handler mainHandler;
     private Runnable mainRunnable;
+    private Runnable pipListenerUnsubscribe;
     private boolean useCache = false;
     private ControlsConfig controlsConfig = new ControlsConfig();
     private String pictureInPictureFragmentTag = "";
@@ -328,18 +325,19 @@ public class ReactExoplayerView extends FrameLayout implements
         this.eventEmitter = new VideoEventEmitter();
         this.config = config;
         this.bandwidthMeter = config.getBandwidthMeter();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && pictureInPictureParamsBuilder == null) {
+            this.pictureInPictureParamsBuilder = new PictureInPictureParams.Builder();
+        }
         mainHandler = new Handler();
+
         createViews();
 
         audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         themedReactContext.addLifecycleEventListener(this);
+        pipListenerUnsubscribe = PictureInPictureUtil.addLifecycleEventListener(context, this);
         audioBecomingNoisyReceiver = new AudioBecomingNoisyReceiver(themedReactContext);
         audioFocusChangeListener = new OnAudioFocusChangedListener(this, themedReactContext);
         pictureInPictureReceiver = new PictureInPictureReceiver(this, themedReactContext);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && pictureInPictureParamsBuilder == null) {
-            pictureInPictureParamsBuilder = new PictureInPictureParams.Builder();
-        }
     }
 
     private boolean isPlayingAd() {
@@ -351,12 +349,13 @@ public class ReactExoplayerView extends FrameLayout implements
             CookieHandler.setDefault(DEFAULT_COOKIE_MANAGER);
         }
 
-        addFragment();
-
         LayoutParams layoutParams = new LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT);
         exoPlayerView = new ExoPlayerView(getContext());
+        exoPlayerView.addOnLayoutChangeListener( (View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) ->
+                PictureInPictureUtil.applySourceRectHint(themedReactContext, pictureInPictureParamsBuilder, exoPlayerView)
+        );
         exoPlayerView.setLayoutParams(layoutParams);
         addView(exoPlayerView, 0, layoutParams);
 
@@ -381,11 +380,8 @@ public class ReactExoplayerView extends FrameLayout implements
     @Override
     public void onHostPause() {
         isInBackground = true;
-        if (enterPictureInPictureOnLeave && !isInPictureInPicture) {
-            enterPictureInPictureMode();
-            return;
-        }
         Activity activity = themedReactContext.getCurrentActivity();
+        boolean isInPictureInPicture = Util.SDK_INT >= Build.VERSION_CODES.N && activity != null && activity.isInPictureInPictureMode();
         boolean isInMultiWindowMode = Util.SDK_INT >= Build.VERSION_CODES.N && activity != null && activity.isInMultiWindowMode();
         if (playInBackground || isInPictureInPicture || isInMultiWindowMode) {
             return;
@@ -402,33 +398,7 @@ public class ReactExoplayerView extends FrameLayout implements
         stopPlayback();
         themedReactContext.removeLifecycleEventListener(this);
         releasePlayer();
-        removeFragment();
         viewHasDropped = true;
-    }
-
-    private void addFragment() {
-        Activity activity = themedReactContext.getCurrentActivity();
-        if (activity instanceof FragmentActivity && !viewHasDropped) {
-            ReactExoplayerFragment fragment = new ReactExoplayerFragment(this);
-            pictureInPictureFragmentTag = fragment.getId();
-            ((FragmentActivity) activity)
-                    .getSupportFragmentManager()
-                    .beginTransaction()
-                    .add(fragment, fragment.getId())
-                    .commitNowAllowingStateLoss();
-        }
-    }
-
-    private void removeFragment() {
-        Activity activity = themedReactContext.getCurrentActivity();
-        if (activity instanceof FragmentActivity) {
-            FragmentManager fragmentManager = ((FragmentActivity) activity).getSupportFragmentManager();
-            Fragment fragment = fragmentManager.findFragmentByTag(pictureInPictureFragmentTag);
-            if (fragment == null) return;
-            fragmentManager.beginTransaction()
-                    .remove(fragment)
-                    .commitNowAllowingStateLoss();
-        }
     }
 
     //BandwidthMeter.EventListener implementation
@@ -1328,6 +1298,9 @@ public class ReactExoplayerView extends FrameLayout implements
             updateResumePosition();
             player.release();
             player.removeListener(this);
+            if (pipListenerUnsubscribe != null) {
+                new Handler().post(pipListenerUnsubscribe);
+            }
             trackSelector = null;
 
             ReactNativeVideoManager.Companion.getInstance().onInstanceRemoved(instanceId, player);
@@ -1859,7 +1832,7 @@ public class ReactExoplayerView extends FrameLayout implements
         if (isPlaying && isSeeking) {
             eventEmitter.onVideoSeek.invoke(player.getCurrentPosition(), seekPosition);
         }
-        updatePictureInPictureActions(!isPlaying);
+        PictureInPictureUtil.applyPlayingStatus(themedReactContext, pictureInPictureParamsBuilder, pictureInPictureReceiver, !isPlaying);
         eventEmitter.onVideoPlaybackStateChanged.invoke(isPlaying, isSeeking);
 
         if (isPlaying) {
@@ -2275,10 +2248,10 @@ public class ReactExoplayerView extends FrameLayout implements
 
     public void setEnterPictureInPictureOnLeave(boolean enterPictureInPictureOnLeave) {
         this.enterPictureInPictureOnLeave = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && enterPictureInPictureOnLeave;
+        PictureInPictureUtil.applyAutoEnterEnabled(themedReactContext, pictureInPictureParamsBuilder, this.enterPictureInPictureOnLeave);
     }
 
     protected void setIsInPictureInPicture(boolean isInPictureInPicture) {
-        this.isInPictureInPicture = isInPictureInPicture;
         eventEmitter.onPictureInPictureStatusChanged.invoke(isInPictureInPicture);
 
         if (fullScreenPlayerView != null && fullScreenPlayerView.isShowing()) {
@@ -2330,16 +2303,6 @@ public class ReactExoplayerView extends FrameLayout implements
                     Choreographer.getInstance().postFrameCallback(this);
                 }
             });
-        }
-    }
-
-    private void updatePictureInPictureActions(boolean isPaused) {
-        if (pictureInPictureParamsBuilder == null) return;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ArrayList<RemoteAction> actions = PictureInPictureUtil.getPictureInPictureActions(themedReactContext, isPaused, pictureInPictureReceiver);
-            pictureInPictureParamsBuilder.setActions(actions);
-            PictureInPictureParams pipParams = pictureInPictureParamsBuilder.build();
-            PictureInPictureUtil.updatePictureInPictureActions(themedReactContext, pipParams);
         }
     }
 
