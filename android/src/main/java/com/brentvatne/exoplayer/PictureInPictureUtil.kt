@@ -48,24 +48,11 @@ object PictureInPictureUtil {
             }
         }
 
-        val onUserLeaveHintCallback = {
-            if (view.enterPictureInPictureOnLeave) {
-                view.enterPictureInPictureMode()
-            }
-        }
-
         activity.addOnPictureInPictureModeChangedListener(onPictureInPictureModeChanged)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            activity.addOnUserLeaveHintListener(onUserLeaveHintCallback)
-        }
-
         // @TODO convert to lambda when ReactExoplayerView migrated
-        return object : Runnable {
-            override fun run() {
-                context.findActivity().removeOnPictureInPictureModeChangedListener(onPictureInPictureModeChanged)
-                context.findActivity().removeOnUserLeaveHintListener(onUserLeaveHintCallback)
-            }
+        return Runnable {
+            context.findActivity().removeOnPictureInPictureModeChangedListener(onPictureInPictureModeChanged)
         }
     }
 
@@ -102,10 +89,17 @@ object PictureInPictureUtil {
     }
 
     @JvmStatic
-    fun applyAutoEnterEnabled(context: ThemedReactContext, pipParamsBuilder: PictureInPictureParams.Builder?, autoEnterEnabled: Boolean) {
-        if (pipParamsBuilder == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
-        pipParamsBuilder.setAutoEnterEnabled(autoEnterEnabled)
-        updatePictureInPictureActions(context, pipParamsBuilder.build())
+    fun applyAutoEnterEnabled(context: ThemedReactContext, userLeaveHintCallback: Runnable, pipParamsBuilder: PictureInPictureParams.Builder?, autoEnterEnabled: Boolean) {
+        if (pipParamsBuilder != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            pipParamsBuilder.setAutoEnterEnabled(autoEnterEnabled)
+            updatePictureInPictureActions(context, pipParamsBuilder.build())
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            if (autoEnterEnabled) {
+                context.findActivity().addOnUserLeaveHintListener(userLeaveHintCallback)
+            } else {
+                context.findActivity().removeOnUserLeaveHintListener(userLeaveHintCallback)
+            }
+        }
     }
 
     @JvmStatic

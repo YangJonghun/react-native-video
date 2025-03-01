@@ -323,9 +323,6 @@ public class ReactExoplayerView extends FrameLayout implements
         this.eventEmitter = new VideoEventEmitter();
         this.config = config;
         this.bandwidthMeter = config.getBandwidthMeter();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && pictureInPictureParamsBuilder == null) {
-            this.pictureInPictureParamsBuilder = new PictureInPictureParams.Builder();
-        }
         mainHandler = new Handler();
 
         createViews();
@@ -1296,9 +1293,9 @@ public class ReactExoplayerView extends FrameLayout implements
             updateResumePosition();
             player.release();
             player.removeListener(this);
-            PictureInPictureUtil.applyAutoEnterEnabled(themedReactContext, pictureInPictureParamsBuilder, false);
+            PictureInPictureUtil.applyAutoEnterEnabled(themedReactContext, this::enterPictureInPictureMode, pictureInPictureParamsBuilder, false);
             if (pipListenerUnsubscribe != null) {
-                new Handler().post(pipListenerUnsubscribe);
+                pipListenerUnsubscribe.run();
             }
             trackSelector = null;
 
@@ -2245,7 +2242,14 @@ public class ReactExoplayerView extends FrameLayout implements
 
     public void setEnterPictureInPictureOnLeave(boolean enterPictureInPictureOnLeave) {
         this.enterPictureInPictureOnLeave = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && enterPictureInPictureOnLeave;
-        PictureInPictureUtil.applyAutoEnterEnabled(themedReactContext, pictureInPictureParamsBuilder, this.enterPictureInPictureOnLeave);
+        if (enterPictureInPictureOnLeave && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (pictureInPictureParamsBuilder == null) {
+                pictureInPictureParamsBuilder = new PictureInPictureParams.Builder();
+            }
+        } else {
+            pictureInPictureParamsBuilder = null;
+        }
+        PictureInPictureUtil.applyAutoEnterEnabled(themedReactContext, this::enterPictureInPictureMode, pictureInPictureParamsBuilder, this.enterPictureInPictureOnLeave);
     }
 
     protected void setIsInPictureInPicture(boolean isInPictureInPicture) {
@@ -2292,6 +2296,9 @@ public class ReactExoplayerView extends FrameLayout implements
     public void enterPictureInPictureMode() {
         PictureInPictureParams _pipParams = null;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (pictureInPictureParamsBuilder == null) {
+                pictureInPictureParamsBuilder = new PictureInPictureParams.Builder();
+            }
             ArrayList<RemoteAction> actions = PictureInPictureUtil.getPictureInPictureActions(themedReactContext, isPaused, pictureInPictureReceiver);
             pictureInPictureParamsBuilder.setActions(actions);
             _pipParams = pictureInPictureParamsBuilder
